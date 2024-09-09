@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -27,48 +29,72 @@ var seqnameCmd = &cobra.Command{
 		}
 
 		pattern := args[0]
-		files := args[1:]
-		start, _ := cmd.Flags().GetInt("start")
+		start, _ := cmd.Flags().GetInt64("start")
 		topic, _ := cmd.Flags().GetString("topic")
 		dryrun, _ := cmd.Flags().GetBool("dry-run")
 
 		pattern_re := regexp.MustCompile(pattern)
 		curdir, _ := os.Getwd()
-		candidates, err := os.ReadDir(curdir)
-		if err != nil {
-			log.Fatal(err)
-		}
-		var already_prefixed []os.DirEntry
-		var no_prefix []os.DirEntry
 
+		var already_prefixed []string
+		var no_prefix []string
+
+		candidates, _ := os.ReadDir(curdir)
+		fmt.Println(pattern_re)
 		for _, file := range candidates {
 			fname := file.Name()
 			if file.Type().IsDir() {
 				continue
 			}
-			if pattern_re.MatchString(fname) && !slices.Contains(IGNORES, fname) {
-				if strings.HasPrefix(fname, topic) {
-					already_prefixed = append(already_prefixed, fname)
-				} else {
-					no_prefix = append(no_prefix, fname)
-				}
+			if !pattern_re.MatchString(fname) {
+				continue
+			}
+			if slices.Contains(IGNORES, fname) {
+				continue
+			}
+			if strings.HasPrefix(fname, topic) {
+				already_prefixed = append(already_prefixed, fname)
+			} else {
+				no_prefix = append(no_prefix, fname)
 			}
 		}
 
-		fmt.Println(already_prefixed)
-		fmt.Println("---")
-		fmt.Println(no_prefix)
+		slices.Sort(already_prefixed)
+		if len(already_prefixed) > 0 {
+			last := already_prefixed[len(already_prefixed)-1]
+			ext := path.Ext(last)
+			no_ext := strings.TrimSuffix(last, ext)
+			last_no_topic := no_ext[len(topic)+2:]
+			parsed, err := strconv.ParseInt(last_no_topic, 10, 32)
+			if err != nil {
+				log.Fatal(err)
+			}
+			start = parsed
+		}
 
-		// matches = sorted(
-		//     [f for f in options if pattern.match(f.name) and f.name not in IGNORES]
-		// )
-		// matches_already_prefixed = [f for f in matches if f.name.startswith(topic)]
-		// matches_no_prefix = [f for f in matches if not f.name.startswith(topic)]
+		var failed []string
+		for _, file := range no_prefix {
+			ext := path.Ext(file)
+			newName := fmt.Sprintf("%v--%03d%v", topic, start, ext)
+			parent := path.Dir(file)
+			newPath := path.Join(parent, newName)
+			if dryrun {
+				fmt.Printf("%v -> %v\n", path.Base(file), newName)
+			} else {
+				err := os.Rename(file, newPath)
+				if err != nil {
+					failed = append(failed, path.Base(file), err.Error())
+				}
+			}
+			start += 1
+		}
 
-		// i = start
-		// if len(matches_already_prefixed) > 0:
-		//     name_last_no_topic = matches_already_prefixed[-1].stem[len(topic) + 2:]
-		//     i = int(name_last_no_topic)
+		if len(failed) > 0 {
+			fmt.Println("Failed: ")
+			for _, f := range failed {
+				fmt.Println(f)
+			}
+		}
 
 		// failed = []
 		// for m in matches_no_prefix:
@@ -87,7 +113,6 @@ var seqnameCmd = &cobra.Command{
 		//     print("Failed:")
 		//     for f in failed:
 		//         print(f)
-
 	},
 }
 
@@ -104,7 +129,6 @@ func init() {
 	// is called directly, e.g.:
 	curdir, _ := os.Getwd()
 	seqnameCmd.Flags().BoolP("dry-run", "n", false, "Preview what would be renamed")
-	seqnameCmd.Flags().IntP("start", "s", 1, "First index")
+	seqnameCmd.Flags().Int64P("start", "s", 1, "First index")
 	seqnameCmd.Flags().StringP("topic", "t", curdir, "Prefix for files")
-	seqnameCmd.Flags().
 }

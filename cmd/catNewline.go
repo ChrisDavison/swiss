@@ -12,7 +12,7 @@ import (
 // catNewlineCmd represents the catNewline command
 var catNewlineCmd = &cobra.Command{
 	Use:   "catNewline",
-	Short: "A brief description of your command",
+	Short: "Join files together with newline in between each",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("catNewline called")
 	},
