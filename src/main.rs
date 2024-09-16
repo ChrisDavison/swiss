@@ -24,6 +24,7 @@ struct Opts {
 }
 
 #[derive(Debug, StructOpt, PartialEq, Clone)]
+#[structopt(rename_all = "camel")]
 enum Subcommand {
     /// Basic web server
     #[structopt(alias = "s")]
@@ -31,11 +32,13 @@ enum Subcommand {
     /// Wrap text in ASCII box art
     Boxtext { text: Vec<String> },
     /// Create new file by joining given files with space in between
-    CatWithNewline {
+    #[structopt(alias = "catNewline")]
+    Join {
         filename: String,
         files: Vec<PathBuf>,
     },
     /// Output how many Kg required for a given BMI
+    #[structopt(alias = "bmi")]
     KgForBMI { bmi: f32 },
     /// Rename to a sequential number, with optional prefix and suffix
     Seqname {
@@ -79,7 +82,7 @@ fn main() {
 
     if let Err(e) = match opts.command.clone() {
         Subcommand::Boxtext { text } => boxtext::run(text.join(" ")),
-        Subcommand::CatWithNewline { filename, files } => cat_with_newline::run(&files, filename),
+        Subcommand::Join { filename, files } => cat_with_newline::run(&files, filename),
         Subcommand::KgForBMI { bmi } => kg_for_bmi::run(bmi),
         Subcommand::Seqname {
             prefix,
