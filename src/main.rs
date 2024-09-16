@@ -4,6 +4,7 @@ use structopt::StructOpt;
 
 mod boxtext;
 mod cat_with_newline;
+mod countext;
 mod kg_for_bmi;
 mod seqname;
 mod serve;
@@ -75,6 +76,8 @@ enum Subcommand {
     Week,
     /// Display start (Monday)
     WeekStart,
+    /// Count Extensions
+    CountExt,
 }
 
 fn main() {
@@ -105,6 +108,7 @@ fn main() {
         Subcommand::Setex { level, text } => setex::run(level, &text),
         Subcommand::Week => week::start_and_end(),
         Subcommand::WeekStart => week::start(),
+        Subcommand::CountExt => countext::run(),
     } {
         eprintln!("{:?}, {}", opts.command, e);
     }
