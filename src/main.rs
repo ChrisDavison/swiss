@@ -1,7 +1,8 @@
 // use rayon::prelude::*;
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use structopt::StructOpt;
 
+mod animalhash;
 mod boxtext;
 mod cat_with_newline;
 mod countext;
@@ -14,57 +15,54 @@ mod week;
 #[macro_use]
 extern crate rocket;
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "swiss", about = "General utilities")]
-struct Opts {
-    #[structopt(subcommand)]
-    command: Subcommand,
-    // /// Use JSON rather than plaintext output
-    // #[structopt(long, short)]
-    // json: bool,
+#[derive(Debug, Parser)]
+#[command(name = "swiss", about = "General utilities")]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
 }
 
-#[derive(Debug, StructOpt, PartialEq, Clone)]
-#[structopt(rename_all = "camel")]
-enum Subcommand {
+#[derive(Subcommand, Debug, Clone)]
+#[command(rename_all = "camel")]
+enum Command {
     /// Basic web server
-    #[structopt(alias = "s")]
+    #[command(alias = "s")]
     Serve,
     /// Wrap text in ASCII box art
     Boxtext { text: Vec<String> },
     /// Create new file by joining given files with space in between
-    #[structopt(alias = "catNewline")]
+    #[command(alias = "catNewline")]
     Join {
         filename: String,
         files: Vec<PathBuf>,
     },
     /// Output how many Kg required for a given BMI
-    #[structopt(alias = "bmi")]
+    #[command(alias = "bmi")]
     KgForBMI { bmi: f32 },
     /// Rename to a sequential number, with optional prefix and suffix
     Seqname {
         /// Text to insert before number
-        #[structopt(short, long, default_value = "")]
+        #[arg(short, long, default_value = "")]
         prefix: String,
 
         /// Text to insert after number
-        #[structopt(short, long, default_value = "")]
+        #[arg(short, long, default_value = "")]
         suffix: String,
 
         ///Keep current name while prefixing or suffixing
-        #[structopt(short, long)]
+        #[arg(short, long)]
         keep_filename: bool,
 
         /// Show files moved/renamed
-        #[structopt(short, long)]
+        #[arg(short, long)]
         verbose: bool,
 
         /// Show files moved/renamed
-        #[structopt(short, long)]
+        #[arg(short, long)]
         dry_run: bool,
 
         /// Separator for file components
-        #[structopt(long, default_value = "")]
+        #[arg(long, default_value = "")]
         separator: String,
 
         /// Directories with files to rename
@@ -78,16 +76,35 @@ enum Subcommand {
     WeekStart,
     /// Count Extensions
     CountExt,
+    /// Generate AnimalHash-type phrase
+    #[command(alias = "ah")]
+    AnimalHash {
+        /// --no-adjective     Don't include adjective
+        #[arg(long, default_value = "true")]
+        adjective: bool,
+        ///    --no-animal        Don't include animal
+        #[arg(long, default_value = "true")]
+        animal: bool,
+        ///    --no-colour        Don't include colour
+        #[arg(long, default_value = "true")]
+        colour: bool,
+        ///    --camelcase        Use camelcase instead of kebabcase
+        #[arg(long, default_value = "true")]
+        camelcase: bool,
+        ///    --pascalcase       Use pascalcase instead of kebabcase (capitalise every word)
+        #[arg(long, default_value = "false")]
+        pascalcase: bool,
+    },
 }
 
 fn main() {
-    let opts = Opts::from_args();
+    let opts = Cli::parse();
 
     if let Err(e) = match opts.command.clone() {
-        Subcommand::Boxtext { text } => boxtext::run(text.join(" ")),
-        Subcommand::Join { filename, files } => cat_with_newline::run(&files, filename),
-        Subcommand::KgForBMI { bmi } => kg_for_bmi::run(bmi),
-        Subcommand::Seqname {
+        Command::Boxtext { text } => boxtext::run(text.join(" ")),
+        Command::Join { filename, files } => cat_with_newline::run(&files, filename),
+        Command::KgForBMI { bmi } => kg_for_bmi::run(bmi),
+        Command::Seqname {
             prefix,
             suffix,
             keep_filename,
@@ -104,11 +121,18 @@ fn main() {
             separator,
             &dirs,
         ),
-        Subcommand::Serve => serve::run(),
-        Subcommand::Setex { level, text } => setex::run(level, &text),
-        Subcommand::Week => week::start_and_end(),
-        Subcommand::WeekStart => week::start(),
-        Subcommand::CountExt => countext::run(),
+        Command::Serve => serve::run(),
+        Command::Setex { level, text } => setex::run(level, &text),
+        Command::Week => week::start_and_end(),
+        Command::WeekStart => week::start(),
+        Command::CountExt => countext::run(),
+        Command::AnimalHash {
+            adjective,
+            animal,
+            colour,
+            camelcase,
+            pascalcase,
+        } => animalhash::run(adjective, animal, colour, camelcase, pascalcase),
     } {
         eprintln!("{:?}, {}", opts.command, e);
     }
