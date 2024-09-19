@@ -12,9 +12,6 @@ mod serve;
 mod setex;
 mod week;
 
-#[macro_use]
-extern crate rocket;
-
 #[derive(Debug, Parser)]
 #[command(name = "swiss", about = "General utilities")]
 struct Cli {
